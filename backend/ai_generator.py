@@ -1,5 +1,7 @@
+from typing import Any, Dict, List, Optional, Tuple
+
 import anthropic
-from typing import List, Optional, Dict, Any, Tuple
+
 
 class AIGenerator:
     """Handles interactions with Anthropic's Claude API for generating responses"""
@@ -46,7 +48,7 @@ All responses must be:
 4. **Example-supported** - Include relevant examples when they aid understanding
 Provide only the direct answer to what was asked.
 """
-    
+
     @staticmethod
     def _extract_text(response) -> str:
         """Get the text content from a response, skipping thinking blocks"""
@@ -58,7 +60,7 @@ Provide only the direct answer to what was asked.
     def __init__(self, api_key: str, model: str):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
-        
+
         # Pre-build base API parameters
         # Thinking disabled: this app needs short, direct answers and the
         # small max_tokens budget would otherwise be consumed by reasoning,
@@ -66,33 +68,36 @@ Provide only the direct answer to what was asked.
         self.base_params = {
             "model": self.model,
             "max_tokens": 800,
-            "thinking": {"type": "disabled"}
+            "thinking": {"type": "disabled"},
         }
-    
-    def generate_response(self, query: str,
-                         conversation_history: Optional[str] = None,
-                         tools: Optional[List] = None,
-                         tool_manager=None) -> str:
+
+    def generate_response(
+        self,
+        query: str,
+        conversation_history: Optional[str] = None,
+        tools: Optional[List] = None,
+        tool_manager=None,
+    ) -> str:
         """
         Generate AI response with optional tool usage and conversation context.
-        
+
         Args:
             query: The user's question or request
             conversation_history: Previous messages for context
             tools: Available tools the AI can use
             tool_manager: Manager to execute tools
-            
+
         Returns:
             Generated response as string
         """
-        
+
         # Build system content efficiently - avoid string ops when possible
         system_content = (
             f"{self.SYSTEM_PROMPT}\n\nPrevious conversation:\n{conversation_history}"
-            if conversation_history 
+            if conversation_history
             else self.SYSTEM_PROMPT
         )
-        
+
         messages = [{"role": "user", "content": query}]
 
         # Tools stay available for every tool round
@@ -104,7 +109,7 @@ Provide only the direct answer to what was asked.
                 **self.base_params,
                 messages=list(messages),
                 system=system_content,
-                **tool_params
+                **tool_params,
             )
 
             # Claude answered directly, or there is nothing to run tools with
@@ -121,9 +126,7 @@ Provide only the direct answer to what was asked.
 
         # Max rounds reached or a tool failed: final answer without tools
         final_response = self.client.messages.create(
-            **self.base_params,
-            messages=list(messages),
-            system=system_content
+            **self.base_params, messages=list(messages), system=system_content
         )
         return self._extract_text(final_response)
 
@@ -145,21 +148,24 @@ Provide only the direct answer to what was asked.
             if content_block.type != "tool_use":
                 continue
             try:
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": content_block.id,
-                    "content": tool_manager.execute_tool(
-                        content_block.name,
-                        **content_block.input
-                    )
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": content_block.id,
+                        "content": tool_manager.execute_tool(
+                            content_block.name, **content_block.input
+                        ),
+                    }
+                )
             except Exception as e:
                 # Every tool_use needs a tool_result, so report the error to Claude
                 failed = True
-                tool_results.append({
-                    "type": "tool_result",
-                    "tool_use_id": content_block.id,
-                    "content": f"Tool error: {e}",
-                    "is_error": True
-                })
+                tool_results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": content_block.id,
+                        "content": f"Tool error: {e}",
+                        "is_error": True,
+                    }
+                )
         return tool_results, failed

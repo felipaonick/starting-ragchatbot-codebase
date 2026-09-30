@@ -16,7 +16,11 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "black>=26.5.1",
+    "flake8>=7.4.1",
+    "flake8-pyproject>=1.2.4",
     "httpx>=0.28.1",
+    "isort>=9.0.2",
     "pytest>=9.1.1",
 ]
 
@@ -27,3 +31,24 @@ markers = [
     "live: calls the real Anthropic API (needs ANTHROPIC_API_KEY; run with -m live)",
 ]
 addopts = "-m 'not live'"
+
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+extend-exclude = '''
+/(
+    chroma_db
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+src_paths = ["backend", "main.py"]
+skip_gitignore = true
+
+[tool.flake8]
+max-line-length = 88
+# E203/W503/E701/E704 conflict with black; E501 is left to black (it won't split long strings)
+extend-ignore = ["E203", "W503", "E701", "E704", "E501"]
+exclude = [".git", ".venv", "__pycache__", "chroma_db", ".trees"]

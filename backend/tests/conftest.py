@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from models import Course, Lesson, CourseChunk
+from models import Course, CourseChunk, Lesson
 from vector_store import VectorStore
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -37,6 +37,7 @@ Retrieval quality is measured with recall at k. A good retriever returns the rel
 
 # ---------- sample data ----------
 
+
 @pytest.fixture
 def sample_course():
     return Course(
@@ -44,8 +45,14 @@ def sample_course():
         course_link=COURSE_LINK,
         instructor="Ada Tester",
         lessons=[
-            Lesson(lesson_number=1, title="Fixtures and Mocks", lesson_link=LESSON_LINKS[1]),
-            Lesson(lesson_number=2, title="Vector Search Evaluation", lesson_link=LESSON_LINKS[2]),
+            Lesson(
+                lesson_number=1, title="Fixtures and Mocks", lesson_link=LESSON_LINKS[1]
+            ),
+            Lesson(
+                lesson_number=2,
+                title="Vector Search Evaluation",
+                lesson_link=LESSON_LINKS[2],
+            ),
         ],
     )
 
@@ -55,15 +62,21 @@ def sample_chunks():
     return [
         CourseChunk(
             content="Fixtures provide reusable setup for tests. A mock object replaces a real dependency.",
-            course_title=COURSE_TITLE, lesson_number=1, chunk_index=0,
+            course_title=COURSE_TITLE,
+            lesson_number=1,
+            chunk_index=0,
         ),
         CourseChunk(
             content="Retrieval quality is measured with recall at k over the top five results.",
-            course_title=COURSE_TITLE, lesson_number=2, chunk_index=1,
+            course_title=COURSE_TITLE,
+            lesson_number=2,
+            chunk_index=1,
         ),
         CourseChunk(
             content="Embeddings map text into a vector space where similar meanings are close together.",
-            course_title=COURSE_TITLE, lesson_number=2, chunk_index=2,
+            course_title=COURSE_TITLE,
+            lesson_number=2,
+            chunk_index=2,
         ),
     ]
 
@@ -76,6 +89,7 @@ def sample_doc_path(tmp_path):
 
 
 # ---------- vector stores ----------
+
 
 @pytest.fixture
 def temp_vector_store(tmp_path, sample_course, sample_chunks):
@@ -90,7 +104,9 @@ def temp_vector_store(tmp_path, sample_course, sample_chunks):
 def prod_vector_store():
     """The real store the app uses (queried only, never written)"""
     if not PROD_CHROMA_PATH.exists():
-        pytest.skip("backend/chroma_db not built yet - start the app once to ingest docs/")
+        pytest.skip(
+            "backend/chroma_db not built yet - start the app once to ingest docs/"
+        )
     return VectorStore(str(PROD_CHROMA_PATH), EMBEDDING_MODEL, max_results=5)
 
 
@@ -104,6 +120,7 @@ def mock_vector_store():
 
 # ---------- fake Anthropic responses ----------
 
+
 def make_text_response(text, stop_reason="end_turn"):
     return SimpleNamespace(
         content=[SimpleNamespace(type="text", text=text)],
@@ -115,7 +132,9 @@ def make_tool_use_response(name, tool_input, tool_id="toolu_test_1", preamble=No
     content = []
     if preamble:
         content.append(SimpleNamespace(type="text", text=preamble))
-    content.append(SimpleNamespace(type="tool_use", name=name, input=tool_input, id=tool_id))
+    content.append(
+        SimpleNamespace(type="tool_use", name=name, input=tool_input, id=tool_id)
+    )
     return SimpleNamespace(content=content, stop_reason="tool_use")
 
 
@@ -123,6 +142,7 @@ def make_tool_use_response(name, tool_input, tool_id="toolu_test_1", preamble=No
 def api_key():
     """Real API key for live tests; skips when not configured"""
     from dotenv import load_dotenv
+
     load_dotenv(REPO_ROOT / ".env")
     key = os.getenv("ANTHROPIC_API_KEY")
     if not key:

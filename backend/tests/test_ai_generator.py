@@ -1,11 +1,12 @@
 """Tests that AIGenerator calls the CourseSearchTool correctly"""
+
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call
 
 import pytest
 
 from ai_generator import AIGenerator
-from search_tools import CourseSearchTool, CourseOutlineTool, ToolManager
+from search_tools import CourseOutlineTool, CourseSearchTool, ToolManager
 from tests.conftest import make_text_response, make_tool_use_response
 
 MODEL = "claude-sonnet-5"
@@ -32,6 +33,7 @@ def call_kwargs(generator, index):
 
 # ---------- first request ----------
 
+
 class TestFirstRequest:
 
     def test_sends_tools_with_auto_choice(self, generator, tool_manager):
@@ -53,7 +55,9 @@ class TestFirstRequest:
     def test_direct_answer_skips_tools(self, generator):
         generator.client.messages.create.return_value = make_text_response("Paris")
         manager = MagicMock()
-        out = generator.generate_response("capital of France?", tools=[{}], tool_manager=manager)
+        out = generator.generate_response(
+            "capital of France?", tools=[{}], tool_manager=manager
+        )
         assert out == "Paris"
         manager.execute_tool.assert_not_called()
         assert generator.client.messages.create.call_count == 1
@@ -61,16 +65,21 @@ class TestFirstRequest:
 
 # ---------- tool round trip ----------
 
+
 class TestToolExecution:
 
     def _run(self, generator, manager, tool_input=None, preamble=None):
         tool_input = tool_input or {"query": "mock objects", "course_name": "RAG"}
         generator.client.messages.create.side_effect = [
-            make_tool_use_response("search_course_content", tool_input, "toolu_1", preamble),
+            make_tool_use_response(
+                "search_course_content", tool_input, "toolu_1", preamble
+            ),
             make_text_response("Mocks replace dependencies."),
         ]
         return generator.generate_response(
-            "What is a mock?", tools=[{"name": "search_course_content"}], tool_manager=manager
+            "What is a mock?",
+            tools=[{"name": "search_course_content"}],
+            tool_manager=manager,
         )
 
     def test_executes_search_tool_with_model_input(self, generator):
@@ -94,21 +103,27 @@ class TestToolExecution:
         assert [m["role"] for m in messages] == ["user", "assistant", "user"]
         assert messages[0]["content"] == "What is a mock?"
         assert any(b.type == "tool_use" for b in messages[1]["content"])
-        assert messages[2]["content"] == [{
-            "type": "tool_result",
-            "tool_use_id": "toolu_1",
-            "content": "search output",
-        }]
+        assert messages[2]["content"] == [
+            {
+                "type": "tool_result",
+                "tool_use_id": "toolu_1",
+                "content": "search output",
+            }
+        ]
 
     def test_final_answer_after_thinking_block(self, generator):
         """Sonnet 5 can put a thinking block before the text; the text must still be returned.
-        Regression: `response.content[0].text` raised AttributeError -> HTTP 500 -> 'Query failed'"""
+        Regression: `response.content[0].text` raised AttributeError -> HTTP 500 -> 'Query failed'
+        """
         manager = MagicMock()
         manager.execute_tool.return_value = "search output"
         final = make_text_response("Mocks replace dependencies.")
-        final.content.insert(0, SimpleNamespace(type="thinking", thinking="", signature="sig"))
+        final.content.insert(
+            0, SimpleNamespace(type="thinking", thinking="", signature="sig")
+        )
         generator.client.messages.create.side_effect = [
-            make_tool_use_response("search_course_content", {"query": "x"}), final,
+            make_tool_use_response("search_course_content", {"query": "x"}),
+            final,
         ]
         out = generator.generate_response("q", tools=[{}], tool_manager=manager)
         assert out == "Mocks replace dependencies."
@@ -147,13 +162,16 @@ class TestToolExecution:
 
 # ---------- sequential tool rounds ----------
 
+
 class TestSequentialTools:
 
     QUERY = "Find a course on the same topic as lesson 4 of course X"
     TOOLS = [{"name": "get_course_outline"}, {"name": "search_course_content"}]
 
     def _outline(self):
-        return make_tool_use_response("get_course_outline", {"course_title": "X"}, "toolu_1")
+        return make_tool_use_response(
+            "get_course_outline", {"course_title": "X"}, "toolu_1"
+        )
 
     def _search(self):
         return make_tool_use_response(
@@ -162,14 +180,22 @@ class TestSequentialTools:
 
     def _run(self, generator, manager, responses):
         generator.client.messages.create.side_effect = responses
-        return generator.generate_response(self.QUERY, tools=self.TOOLS, tool_manager=manager)
+        return generator.generate_response(
+            self.QUERY, tools=self.TOOLS, tool_manager=manager
+        )
 
     def test_two_rounds_then_final_answer(self, generator):
         manager = MagicMock()
         manager.execute_tool.side_effect = ["outline output", "search output"]
-        out = self._run(generator, manager, [
-            self._outline(), self._search(), make_text_response("Course Y covers it."),
-        ])
+        out = self._run(
+            generator,
+            manager,
+            [
+                self._outline(),
+                self._search(),
+                make_text_response("Course Y covers it."),
+            ],
+        )
 
         assert manager.execute_tool.call_args_list == [
             call("get_course_outline", course_title="X"),
@@ -181,35 +207,62 @@ class TestSequentialTools:
     def test_second_round_sees_first_result(self, generator):
         manager = MagicMock()
         manager.execute_tool.side_effect = ["outline output", "search output"]
-        self._run(generator, manager, [
-            self._outline(), self._search(), make_text_response("done"),
-        ])
+        self._run(
+            generator,
+            manager,
+            [
+                self._outline(),
+                self._search(),
+                make_text_response("done"),
+            ],
+        )
 
         second = call_kwargs(generator, 1)
         assert second["tools"] == self.TOOLS
         assert [m["role"] for m in second["messages"]] == ["user", "assistant", "user"]
-        assert second["messages"][2]["content"] == [{
-            "type": "tool_result", "tool_use_id": "toolu_1", "content": "outline output",
-        }]
+        assert second["messages"][2]["content"] == [
+            {
+                "type": "tool_result",
+                "tool_use_id": "toolu_1",
+                "content": "outline output",
+            }
+        ]
 
     def test_final_call_after_max_rounds_omits_tools(self, generator):
         manager = MagicMock()
         manager.execute_tool.side_effect = ["outline output", "search output"]
-        self._run(generator, manager, [
-            self._outline(), self._search(), make_text_response("done"),
-        ])
+        self._run(
+            generator,
+            manager,
+            [
+                self._outline(),
+                self._search(),
+                make_text_response("done"),
+            ],
+        )
 
         final = call_kwargs(generator, 2)
         assert "tools" not in final
         assert "tool_choice" not in final
         messages = final["messages"]
-        assert [m["role"] for m in messages] == ["user", "assistant", "user", "assistant", "user"]
-        assert [m["content"][0]["tool_use_id"] for m in messages[2::2]] == ["toolu_1", "toolu_2"]
+        assert [m["role"] for m in messages] == [
+            "user",
+            "assistant",
+            "user",
+            "assistant",
+            "user",
+        ]
+        assert [m["content"][0]["tool_use_id"] for m in messages[2::2]] == [
+            "toolu_1",
+            "toolu_2",
+        ]
 
     def test_stops_after_one_round_when_claude_answers(self, generator):
         manager = MagicMock()
         manager.execute_tool.return_value = "outline output"
-        out = self._run(generator, manager, [self._outline(), make_text_response("Lesson 4 is X.")])
+        out = self._run(
+            generator, manager, [self._outline(), make_text_response("Lesson 4 is X.")]
+        )
 
         assert manager.execute_tool.call_count == 1
         assert generator.client.messages.create.call_count == 2
@@ -218,9 +271,14 @@ class TestSequentialTools:
     def test_error_in_first_round_skips_second_round(self, generator):
         manager = MagicMock()
         manager.execute_tool.side_effect = RuntimeError("boom")
-        out = self._run(generator, manager, [
-            self._outline(), make_text_response("Could not retrieve the outline."),
-        ])
+        out = self._run(
+            generator,
+            manager,
+            [
+                self._outline(),
+                make_text_response("Could not retrieve the outline."),
+            ],
+        )
 
         assert manager.execute_tool.call_count == 1
         assert generator.client.messages.create.call_count == 2
@@ -230,9 +288,15 @@ class TestSequentialTools:
     def test_error_in_second_round_still_answers(self, generator):
         manager = MagicMock()
         manager.execute_tool.side_effect = ["outline output", RuntimeError("boom")]
-        out = self._run(generator, manager, [
-            self._outline(), self._search(), make_text_response("Partial answer."),
-        ])
+        out = self._run(
+            generator,
+            manager,
+            [
+                self._outline(),
+                self._search(),
+                make_text_response("Partial answer."),
+            ],
+        )
 
         assert generator.client.messages.create.call_count == 3
         last_result = call_kwargs(generator, 2)["messages"][-1]["content"][0]
@@ -243,23 +307,36 @@ class TestSequentialTools:
     def test_parallel_tool_uses_in_one_round(self, generator):
         manager = MagicMock()
         manager.execute_tool.side_effect = ["result a", "result b"]
-        both = SimpleNamespace(stop_reason="tool_use", content=[
-            SimpleNamespace(type="tool_use", name="search_course_content",
-                            input={"query": "a"}, id="toolu_a"),
-            SimpleNamespace(type="tool_use", name="search_course_content",
-                            input={"query": "b"}, id="toolu_b"),
-        ])
+        both = SimpleNamespace(
+            stop_reason="tool_use",
+            content=[
+                SimpleNamespace(
+                    type="tool_use",
+                    name="search_course_content",
+                    input={"query": "a"},
+                    id="toolu_a",
+                ),
+                SimpleNamespace(
+                    type="tool_use",
+                    name="search_course_content",
+                    input={"query": "b"},
+                    id="toolu_b",
+                ),
+            ],
+        )
         out = self._run(generator, manager, [both, make_text_response("compared")])
 
         assert manager.execute_tool.call_count == 2
         results = call_kwargs(generator, 1)["messages"][2]["content"]
         assert [(r["tool_use_id"], r["content"]) for r in results] == [
-            ("toolu_a", "result a"), ("toolu_b", "result b"),
+            ("toolu_a", "result a"),
+            ("toolu_b", "result b"),
         ]
         assert out == "compared"
 
 
 # ---------- live: real Anthropic API ----------
+
 
 @pytest.mark.live
 class TestLive:
@@ -280,7 +357,9 @@ class TestLive:
             tools=tool_manager.get_tool_definitions(),
             tool_manager=tool_manager,
         )
-        assert calls and calls[0][0] == "search_course_content", f"no search made; answer: {out!r}"
+        assert (
+            calls and calls[0][0] == "search_course_content"
+        ), f"no search made; answer: {out!r}"
         assert out.strip()
         assert "recall" in out.lower()
 
@@ -313,7 +392,8 @@ class TestLive:
             tools=tool_manager.get_tool_definitions(),
             tool_manager=tool_manager,
         )
-        assert calls[:2] == ["get_course_outline", "search_course_content"], (
-            f"tool calls: {calls}; answer: {out!r}"
-        )
+        assert calls[:2] == [
+            "get_course_outline",
+            "search_course_content",
+        ], f"tool calls: {calls}; answer: {out!r}"
         assert out.strip()

@@ -28,7 +28,15 @@ uv sync
 - API docs (Swagger): `http://localhost:8000/docs`
 - Requires `ANTHROPIC_API_KEY` set in a `.env` file at the repo root (see `.env.example`).
 - On Windows, use Git Bash to run these commands (`run.sh` is a bash script).
-- There is no test suite, linter, or build step configured in this repo.
+
+Code quality (dev tools installed via `uv sync`; config lives in `pyproject.toml`):
+```bash
+./scripts/format.sh   # auto-format: isort (black profile) + black
+./scripts/lint.sh     # check-only: isort --check, black --check, flake8
+./scripts/check.sh    # lint.sh + pytest (full quality gate)
+uv run pytest         # tests only (live API tests excluded; run with -m live)
+```
+Black (line length 88) is the source of truth for formatting; flake8 ignores rules that conflict with black, including E501. Run `format.sh` before committing.
 
 ## Architecture
 
