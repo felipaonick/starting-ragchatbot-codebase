@@ -1,3 +1,4 @@
+import json
 from typing import Dict, Any, Optional, Protocol
 from abc import ABC, abstractmethod
 from vector_store import VectorStore, SearchResults
@@ -104,7 +105,13 @@ class CourseSearchTool(Tool):
             source = course_title
             if lesson_num is not None:
                 source += f" - Lesson {lesson_num}"
-            sources.append(source)
+
+            if lesson_num is not None:
+                source_link = self.store.get_lesson_link(course_title, lesson_num)
+            else:
+                source_link = self.store.get_course_link(course_title)
+
+            sources.append({"text": source, "link": source_link})
             
             formatted.append(f"{header}\n{doc}")
         
@@ -112,6 +119,66 @@ class CourseSearchTool(Tool):
         self.last_sources = sources
         
         return "\n\n".join(formatted)
+
+
+class CourseOutlineTool(Tool):
+    """Tool for retrieving a course outline (title, link, lessons) from course metadata"""
+
+    def __init__(self, vector_store: VectorStore):
+        self.store = vector_store
+        self.last_sources = []  # Track sources from last lookup
+
+    def get_tool_definition(self) -> Dict[str, Any]:
+        """Return Anthropic tool definition for this tool"""
+        return {
+            "name": "get_course_outline",
+            "description": "Get a course outline: course title, course link, and the complete list of lessons (number and title)",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "course_title": {
+                        "type": "string",
+                        "description": "Course title (partial matches work, e.g. 'MCP', 'Introduction')"
+                    }
+                },
+                "required": ["course_title"]
+            }
+        }
+
+    def execute(self, course_title: str) -> str:
+        """
+        Look up the outline of a course by (possibly partial) title.
+
+        Args:
+            course_title: Course title to look up
+
+        Returns:
+            Formatted course outline or error message
+        """
+        # Resolve partial/fuzzy title via semantic search on the course catalog
+        resolved_title = self.store._resolve_course_name(course_title)
+        if not resolved_title:
+            return f"No course found matching '{course_title}'."
+
+        results = self.store.course_catalog.get(ids=[resolved_title])
+        if not results or not results.get('metadatas'):
+            return f"No outline available for course '{resolved_title}'."
+
+        metadata = results['metadatas'][0]
+        course_link = metadata.get('course_link')
+        lessons = json.loads(metadata.get('lessons_json') or "[]")
+        lessons.sort(key=lambda l: l.get('lesson_number', 0))
+
+        lines = [f"Course: {resolved_title}"]
+        lines.append(f"Course link: {course_link or 'N/A'}")
+        lines.append(f"Lessons ({len(lessons)}):")
+        for lesson in lessons:
+            lines.append(f"  Lesson {lesson.get('lesson_number')}: {lesson.get('lesson_title')}")
+
+        self.last_sources = [{"text": resolved_title, "link": course_link}]
+
+        return "\n".join(lines)
+
 
 class ToolManager:
     """Manages available tools for the AI"""

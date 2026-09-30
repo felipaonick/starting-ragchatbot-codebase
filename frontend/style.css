@@ -241,8 +241,50 @@ header h1 {
 }
 
 .sources-content {
-    padding: 0 0.5rem 0.25rem 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.25rem 0.5rem 0.25rem 1.5rem;
+}
+
+.source-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    max-width: 100%;
+}
+
+.source-chip-text {
+    background: var(--background);
+    border: 1px solid var(--border-color);
     color: var(--text-secondary);
+}
+
+.source-chip-link {
+    background: rgba(37, 99, 235, 0.12);
+    border: 1px solid rgba(37, 99, 235, 0.35);
+    color: #93c5fd;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.source-chip-link::before {
+    content: '↗';
+    font-size: 0.8em;
+    line-height: 1;
+}
+
+.source-chip-link:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
 }
 
 /* Markdown formatting styles */
@@ -443,6 +485,34 @@ header h1 {
     border-radius: 8px;
     border: 1px solid rgba(34, 197, 94, 0.2);
     margin: 0.5rem 0;
+}
+
+/* New Chat Button */
+.new-chat-button {
+    display: block;
+    width: 100%;
+    margin: 0;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.5rem 0;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    appearance: none;
+    background: none;
+    outline: none;
+    transition: color 0.2s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    text-align: left;
+}
+
+.new-chat-button:focus,
+.new-chat-button:hover {
+    color: var(--primary-color);
 }
 
 /* Sidebar Headers */
