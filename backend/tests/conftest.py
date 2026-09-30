@@ -156,7 +156,9 @@ def api_key():
 # which doesn't resolve when pytest runs from the repo root. So API tests use a
 # test app exposing the same endpoints, backed by a mock RAG system.
 
-FRONTEND_HTML = "<!doctype html><html><body><h1>Course Materials Assistant</h1></body></html>"
+FRONTEND_HTML = (
+    "<!doctype html><html><body><h1>Course Materials Assistant</h1></body></html>"
+)
 
 
 def create_test_app(rag_system, static_dir=None):
@@ -233,7 +235,10 @@ def mock_rag_system():
         "Fixtures provide reusable setup.",
         [{"text": f"{COURSE_TITLE} - Lesson 1", "link": LESSON_LINKS[1]}],
     )
-    rag.get_course_analytics.return_value = {"total_courses": 1, "course_titles": [COURSE_TITLE]}
+    rag.get_course_analytics.return_value = {
+        "total_courses": 1,
+        "course_titles": [COURSE_TITLE],
+    }
     return rag
 
 

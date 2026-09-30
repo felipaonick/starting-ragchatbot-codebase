@@ -1,4 +1,5 @@
 """Tests for the FastAPI endpoints' request/response handling"""
+
 import pytest
 
 from tests.conftest import COURSE_TITLE, FRONTEND_HTML, LESSON_LINKS
@@ -14,7 +15,9 @@ class TestQueryEndpoint:
         assert resp.status_code == 200
         assert resp.json() == {
             "answer": "Fixtures provide reusable setup.",
-            "sources": [{"text": f"{COURSE_TITLE} - Lesson 1", "link": LESSON_LINKS[1]}],
+            "sources": [
+                {"text": f"{COURSE_TITLE} - Lesson 1", "link": LESSON_LINKS[1]}
+            ],
             "session_id": "session_1",
         }
         mock_rag_system.query.assert_called_once_with("What are fixtures?", "session_1")
@@ -25,7 +28,9 @@ class TestQueryEndpoint:
         assert first != second
 
     def test_reuses_given_session_id(self, client, mock_rag_system):
-        resp = client.post("/api/query", json={"query": "follow-up", "session_id": "abc"})
+        resp = client.post(
+            "/api/query", json={"query": "follow-up", "session_id": "abc"}
+        )
 
         assert resp.json()["session_id"] == "abc"
         mock_rag_system.query.assert_called_once_with("follow-up", "abc")
@@ -42,14 +47,18 @@ class TestQueryEndpoint:
         assert resp.status_code == 200
         assert resp.json()["sources"] == []
 
-    @pytest.mark.parametrize("body", [{}, {"session_id": "abc"}, {"query": None}, {"query": ["x"]}])
+    @pytest.mark.parametrize(
+        "body", [{}, {"session_id": "abc"}, {"query": None}, {"query": ["x"]}]
+    )
     def test_invalid_body_is_rejected(self, client, mock_rag_system, body):
         resp = client.post("/api/query", json=body)
         assert resp.status_code == 422
         mock_rag_system.query.assert_not_called()
 
     def test_non_json_body_is_rejected(self, client):
-        resp = client.post("/api/query", content="just text", headers={"Content-Type": "text/plain"})
+        resp = client.post(
+            "/api/query", content="just text", headers={"Content-Type": "text/plain"}
+        )
         assert resp.status_code == 422
 
     def test_rag_error_becomes_500_with_detail(self, client, mock_rag_system):
@@ -76,8 +85,14 @@ class TestCoursesEndpoint:
         assert resp.json() == {"total_courses": 1, "course_titles": [COURSE_TITLE]}
 
     def test_empty_catalog(self, client, mock_rag_system):
-        mock_rag_system.get_course_analytics.return_value = {"total_courses": 0, "course_titles": []}
-        assert client.get("/api/courses").json() == {"total_courses": 0, "course_titles": []}
+        mock_rag_system.get_course_analytics.return_value = {
+            "total_courses": 0,
+            "course_titles": [],
+        }
+        assert client.get("/api/courses").json() == {
+            "total_courses": 0,
+            "course_titles": [],
+        }
 
     def test_analytics_error_becomes_500(self, client, mock_rag_system):
         mock_rag_system.get_course_analytics.side_effect = RuntimeError("chroma down")
