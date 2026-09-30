@@ -22,6 +22,73 @@
     --focus-ring: rgba(37, 99, 235, 0.2);
     --welcome-bg: #1e3a5f;
     --welcome-border: #2563eb;
+    --link-color: #93c5fd;
+    --code-bg: rgba(0, 0, 0, 0.2);
+    --toggle-bg: #1e293b;
+    --toggle-icon: #fbbf24;
+    --input-border: #334155;
+    --welcome-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    --error-text: #f87171;
+    --error-bg: rgba(239, 68, 68, 0.1);
+    --error-border: rgba(239, 68, 68, 0.2);
+    --success-text: #4ade80;
+    --success-bg: rgba(34, 197, 94, 0.1);
+    --success-border: rgba(34, 197, 94, 0.2);
+}
+
+/* Light Theme
+   Contrast ratios (WCAG 2.1) against the light surfaces (#ffffff / #f8fafc):
+   - text-primary   #0f172a  ~17.9 / 17.1  (AAA)
+   - text-secondary #475569  ~7.6 / 7.2    (AAA)
+   - primary-color  #2563eb  ~5.2 / 4.9    (AA; >=4.7 on surface-hover too)
+   - white on user-message #2563eb ~5.2    (AA)
+   - link-color     #1d4ed8  ~5.7 on the tinted source chip (AA)
+   - error #b91c1c ~5.7, success #15803d ~4.6 on their tinted backgrounds (AA)
+   - input-border   #8391a7  >=3.0         (meets 1.4.11 non-text contrast)
+   Decorative dividers use the softer --border-color. */
+[data-theme="light"] {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --background: #f8fafc;
+    --surface: #ffffff;
+    --surface-hover: #f1f5f9;
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --border-color: #cbd5e1;
+    --user-message: #2563eb;
+    --assistant-message: #f1f5f9;
+    --shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.1);
+    --focus-ring: rgba(37, 99, 235, 0.3);
+    --welcome-bg: #eff6ff;
+    --welcome-border: #2563eb;
+    --link-color: #1d4ed8;
+    --code-bg: rgba(15, 23, 42, 0.06);
+    --toggle-bg: #ffffff;
+    --toggle-icon: #4f46e5;
+    --input-border: #8391a7;
+    --welcome-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+    --error-text: #b91c1c;
+    --error-bg: rgba(239, 68, 68, 0.08);
+    --error-border: rgba(185, 28, 28, 0.3);
+    --success-text: #15803d;
+    --success-bg: rgba(34, 197, 94, 0.1);
+    --success-border: rgba(21, 128, 61, 0.3);
+}
+
+/* Smooth color transitions when switching themes.
+   script.js adds .theme-transition to <html> only for the duration of a switch,
+   so every element fades without changing its normal hover/focus transitions. */
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease,
+                fill 0.3s ease, stroke 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+/* Keep the toggle's own rotate/fade icon animation during a switch */
+html.theme-transition .theme-toggle svg {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
 }
 
 /* Base Styles */
@@ -267,7 +334,7 @@ header h1 {
 .source-chip-link {
     background: rgba(37, 99, 235, 0.12);
     border: 1px solid rgba(37, 99, 235, 0.35);
-    color: #93c5fd;
+    color: var(--link-color);
     text-decoration: none;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -319,7 +386,7 @@ header h1 {
 }
 
 .message-content code {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: var(--code-bg);
     padding: 0.125rem 0.25rem;
     border-radius: 3px;
     font-family: 'Fira Code', 'Consolas', monospace;
@@ -327,7 +394,7 @@ header h1 {
 }
 
 .message-content pre {
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: var(--code-bg);
     padding: 0.75rem;
     border-radius: 4px;
     overflow-x: auto;
@@ -340,7 +407,7 @@ header h1 {
 }
 
 .message-content blockquote {
-    border-left: 3px solid var(--primary);
+    border-left: 3px solid var(--primary-color);
     padding-left: 1rem;
     margin: 0.5rem 0;
     color: var(--text-secondary);
@@ -350,7 +417,7 @@ header h1 {
 .message.welcome-message .message-content {
     background: var(--surface);
     border: 2px solid var(--border-color);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--welcome-shadow);
     position: relative;
 }
 
@@ -383,7 +450,7 @@ header h1 {
     flex: 1;
     padding: 0.875rem 1.25rem;
     background: var(--surface);
-    border: 1px solid var(--border-color);
+    border: 1px solid var(--input-border);
     border-radius: 24px;
     color: var(--text-primary);
     font-size: 0.95rem;
@@ -469,21 +536,21 @@ header h1 {
 
 /* Error Message */
 .error-message {
-    background: rgba(239, 68, 68, 0.1);
-    color: #f87171;
+    background: var(--error-bg);
+    color: var(--error-text);
     padding: 0.75rem 1.25rem;
     border-radius: 8px;
-    border: 1px solid rgba(239, 68, 68, 0.2);
+    border: 1px solid var(--error-border);
     margin: 0.5rem 0;
 }
 
 /* Success Message */
 .success-message {
-    background: rgba(34, 197, 94, 0.1);
-    color: #4ade80;
+    background: var(--success-bg);
+    color: var(--success-text);
     padding: 0.75rem 1.25rem;
     border-radius: 8px;
-    border: 1px solid rgba(34, 197, 94, 0.2);
+    border: 1px solid var(--success-border);
     margin: 0.5rem 0;
 }
 
@@ -704,8 +771,101 @@ details[open] .suggested-header::before {
     transform: translateX(2px);
 }
 
+/* Theme Toggle Button */
+.theme-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 100;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: var(--toggle-bg);
+    color: var(--toggle-icon);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    overflow: hidden;
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease,
+                transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.theme-toggle:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.theme-toggle:active {
+    transform: translateY(0) scale(0.95);
+}
+
+.theme-toggle:focus {
+    outline: none;
+}
+
+.theme-toggle:focus-visible {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--focus-ring);
+}
+
+.theme-toggle svg {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}
+
+/* Dark theme (default): show the sun — click to go light */
+.theme-toggle .icon-sun {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+.theme-toggle .icon-moon {
+    opacity: 0;
+    transform: rotate(-90deg) scale(0.5);
+}
+
+/* Light theme: show the moon — click to go dark */
+[data-theme="light"] .theme-toggle .icon-sun {
+    opacity: 0;
+    transform: rotate(90deg) scale(0.5);
+}
+
+[data-theme="light"] .theme-toggle .icon-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+}
+
+/* Keep the fixed toggle from covering the first message when the chat column reaches the right edge */
+@media (max-width: 1280px) {
+    .chat-messages {
+        padding-top: 4rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .theme-toggle,
+    .theme-toggle svg,
+    html.theme-transition .theme-toggle svg {
+        transition: none !important;
+    }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
+    .theme-toggle {
+        top: 0.75rem;
+        right: 0.75rem;
+        width: 40px;
+        height: 40px;
+    }
+
     .main-content {
         flex-direction: column;
     }
@@ -750,6 +910,7 @@ details[open] .suggested-header::before {
     
     .chat-messages {
         padding: 1rem;
+        padding-top: 3.5rem;
     }
     
     .message {
