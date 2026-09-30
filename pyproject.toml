@@ -25,5 +25,6 @@ testpaths = ["backend/tests"]
 pythonpath = ["backend"]
 markers = [
     "live: calls the real Anthropic API (needs ANTHROPIC_API_KEY; run with -m live)",
+    "api: FastAPI endpoint tests (run alone with -m api)",
 ]
-addopts = "-m 'not live'"
+addopts = "-m 'not live' -ra --strict-markers"

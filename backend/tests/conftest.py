@@ -128,3 +128,107 @@ def api_key():
     if not key:
         pytest.skip("ANTHROPIC_API_KEY not set")
     return key
+
+
+# ---------- API test app ----------
+#
+# backend/app.py builds a real RAGSystem at import time and mounts ../frontend,
+# which doesn't resolve when pytest runs from the repo root. So API tests use a
+# test app exposing the same endpoints, backed by a mock RAG system.
+
+FRONTEND_HTML = "<!doctype html><html><body><h1>Course Materials Assistant</h1></body></html>"
+
+
+def create_test_app(rag_system, static_dir=None):
+    """Build a FastAPI app mirroring backend/app.py's API around the given RAG system"""
+    from typing import List, Optional
+
+    from fastapi import FastAPI, HTTPException
+    from fastapi.staticfiles import StaticFiles
+    from pydantic import BaseModel
+
+    app = FastAPI(title="Course Materials RAG System (test)")
+
+    class QueryRequest(BaseModel):
+        query: str
+        session_id: Optional[str] = None
+
+    class SourceItem(BaseModel):
+        text: str
+        link: Optional[str] = None
+
+    class QueryResponse(BaseModel):
+        answer: str
+        sources: List[SourceItem]
+        session_id: str
+
+    class CourseStats(BaseModel):
+        total_courses: int
+        course_titles: List[str]
+
+    @app.post("/api/query", response_model=QueryResponse)
+    async def query_documents(request: QueryRequest):
+        try:
+            session_id = request.session_id
+            if not session_id:
+                session_id = rag_system.session_manager.create_session()
+            answer, sources = rag_system.query(request.query, session_id)
+            return QueryResponse(answer=answer, sources=sources, session_id=session_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.get("/api/courses", response_model=CourseStats)
+    async def get_course_stats():
+        try:
+            analytics = rag_system.get_course_analytics()
+            return CourseStats(
+                total_courses=analytics["total_courses"],
+                course_titles=analytics["course_titles"],
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @app.delete("/api/session/{session_id}")
+    async def clear_session(session_id: str):
+        try:
+            rag_system.session_manager.clear_session(session_id)
+            return {"success": True}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+
+    if static_dir is not None:
+        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+
+    return app
+
+
+@pytest.fixture
+def mock_rag_system():
+    """A RAGSystem stand-in with canned answers and a real SessionManager"""
+    from session_manager import SessionManager
+
+    rag = MagicMock()
+    rag.session_manager = SessionManager(max_history=2)
+    rag.query.return_value = (
+        "Fixtures provide reusable setup.",
+        [{"text": f"{COURSE_TITLE} - Lesson 1", "link": LESSON_LINKS[1]}],
+    )
+    rag.get_course_analytics.return_value = {"total_courses": 1, "course_titles": [COURSE_TITLE]}
+    return rag
+
+
+@pytest.fixture
+def frontend_dir(tmp_path):
+    """A stand-in for frontend/ with a minimal index.html"""
+    static = tmp_path / "frontend"
+    static.mkdir()
+    (static / "index.html").write_text(FRONTEND_HTML, encoding="utf-8")
+    return static
+
+
+@pytest.fixture
+def client(mock_rag_system, frontend_dir):
+    from fastapi.testclient import TestClient
+
+    with TestClient(create_test_app(mock_rag_system, frontend_dir)) as c:
+        yield c
